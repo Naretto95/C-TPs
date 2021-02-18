@@ -1,2 +1,2 @@
-# CProjects-TP
-TP made with C in class.
+# CProject-TPs
+TPs made with C in class.
