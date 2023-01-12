@@ -1,6 +1,4 @@
 # C-TPs
-Copy code
-# C Programming Practical Works
 
 This repository contains a collection of C programming practical works that were completed as part of a class. The practical works cover a wide range of topics and include solutions to various problems and exercises.
 
