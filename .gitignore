@@ -1,0 +1,16 @@
+# Build output (every TP builds into its own bin/ via `make`)
+bin/
+*.o
+*.obj
+*.exe
+*.out
+
+# Doxygen output
+doc/
+html/
+latex/
+
+# Editor/OS cruft
+*.swp
+.vscode/
+.DS_Store

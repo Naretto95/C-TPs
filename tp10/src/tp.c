@@ -1,142 +1,106 @@
+/**
+ * @file tp.c
+ * @brief Solves quadratic and cubic equations, including their complex roots.
+ * @author Lilian Naretto
+ */
+
 #include "tp.h"
-/*!\author Lilian Naretto <narettolil@eisti.eu>
-\date 5 decembre 2019
-\file tp.c
-\brief tp
-\version 0.1 premier jet*/
 
-typedef struct nombreComplexe
-{
-    double reel;
-    double imaginaire;
-}complexe;
+void solve_quadratic(double a, double b, double c) {
+    double discriminant = b * b - 4 * a * c;
 
-typedef struct solutionEqu2D
-{
-    double a;
-    double b;
-    double c;
-    double d;
-    double racine1;
-    double racine2;
-    double racine3;
-    double racine4;
-    double racine5;
-    double racine6;
-    double discriminant;
-}solution;
-
-void resolution(double a,double b,double c){
-    solution resultat;
-    complexe nb;
-    resultat.discriminant = b * b - 4 * a * c;
-
-    if (resultat.discriminant > 0) {
-        resultat.racine1 = (-b + sqrt(resultat.discriminant)) / (2 * a);
-        resultat.racine2 = (-b - sqrt(resultat.discriminant)) / (2 * a);
-        printf("racine1 = %lf et racine22 = %lf \n", resultat.racine1, resultat.racine2);
-    }
-
-    else if (resultat.discriminant == 0) {
-        resultat.racine1 = resultat.racine2 = -b / (2 * a);
-        printf("racine1 = racine2 = %lf \n", resultat.racine1);
-    }
-        else {
-        nb.reel = -b / (2 * a);
-        nb.imaginaire = sqrt(-resultat.discriminant) / (2 * a);
-        printf("racine1 = %lf+%lf et racine2 = %lf-%lf \n", nb.reel, nb.imaginaire, nb.reel, nb.imaginaire);
+    if (discriminant > 0) {
+        double root1 = (-b + sqrt(discriminant)) / (2 * a);
+        double root2 = (-b - sqrt(discriminant)) / (2 * a);
+        printf("root1 = %lf and root2 = %lf\n", root1, root2);
+    } else if (discriminant == 0) {
+        double root = -b / (2 * a);
+        printf("root1 = root2 = %lf\n", root);
+    } else {
+        complex_t root = {-b / (2 * a), sqrt(-discriminant) / (2 * a)};
+        printf("root1 = %lf+%lfi and root2 = %lf-%lfi\n", root.re, root.im, root.re, root.im);
     }
 }
 
-void afficher(){
-    solution resultat; 
-    printf("donne a : ");
-    scanf("%lf",&resultat.a);
-    printf("donne b : ");
-    scanf("%lf",&resultat.b);
-    printf("donne c : ");
-    scanf("%lf",&resultat.c);
-    resolution(resultat.a,resultat.b,resultat.c);
+void prompt_quadratic(void) {
+    double a, b, c;
+    printf("a: ");
+    scanf("%lf", &a);
+    printf("b: ");
+    scanf("%lf", &b);
+    printf("c: ");
+    scanf("%lf", &c);
+    solve_quadratic(a, b, c);
 }
 
-void approcher(double a, double b,double c, double d){
-    solution resultat;
-    if (a == 0)
-    {
-        printf("Erreur \n");
-        return;
-    } 
-    if (d == 0)
-    {
-        printf("Erreur \n");
+/** Cube root that preserves the sign of `x` (pow() alone can't handle negative bases). */
+static double signed_cbrt(double x) {
+    return (x < 0) ? -pow(-x, 1.0 / 3.0) : pow(x, 1.0 / 3.0);
+}
+
+void solve_cubic(double a, double b, double c, double d) {
+    if (a == 0 || d == 0) {
+        printf("Error\n");
         return;
     }
+
+    /* normalize to x^3 + bx^2 + cx + d = 0, then apply Cardano's method */
     b /= a;
     c /= a;
     d /= a;
-    double disc, q, r, dum1, s, t, term1, r13;
-    q = (3.0*c - (b*b))/9.0;
-    r = -(27.0*d) + b*(9.0*c - 2.0*(b*b));
+
+    double q = (3.0 * c - (b * b)) / 9.0;
+    double r = -(27.0 * d) + b * (9.0 * c - 2.0 * (b * b));
     r /= 54.0;
-    disc = q*q*q + r*r;
-    term1 = (b/3.0);
-    resultat.racine1=0;
-    if (disc > 0) {
-        s = r + sqrt(disc);
-        s = ((s < 0) ? -pow(-s, (1.0/3.0)) : pow(s, (1.0/3.0)));
-        t = r - sqrt(disc);
-        t = ((t < 0) ? -pow(-t, (1.0/3.0)) : pow(t, (1.0/3.0)));
-        resultat.racine4 = -term1 + s + t;
-        term1 += (s + t)/2.0;
-        resultat.racine5 = resultat.racine6 = -term1;
-        term1 = sqrt(3.0)*(-t + s)/2;
-        resultat.racine1 = term1;
-        resultat.racine3 = -term1;
-        resultat.racine2 = 0.0000;
-        printf("( %lf + %lf i , %lf + %lf i , %lf + %lf i )\n",resultat.racine4,resultat.racine2,resultat.racine5,resultat.racine1,resultat.racine6,resultat.racine3);
-        return;
-    } 
+    double discriminant = q * q * q + r * r;
+    double term1 = b / 3.0;
 
-    resultat.racine3 = resultat.racine2 = 0;
-    if (disc == 0){ 
-        r13 = ((r < 0) ? -pow(-r,(1.0/3.0)) : pow(r,(1.0/3.0)));
-        resultat.racine1 = -term1 + 2.0*r13;
-        resultat.racine3 = resultat.racine2 = -(r13 + term1);
-        printf("( %lf , %lf , %lf )\n",resultat.racine1,resultat.racine2,resultat.racine3);
+    if (discriminant > 0) {
+        double s = signed_cbrt(r + sqrt(discriminant));
+        double t = signed_cbrt(r - sqrt(discriminant));
+
+        double real_root = -term1 + s + t;
+        double repeated_real = -(term1 + (s + t) / 2.0);
+        double imaginary = sqrt(3.0) * (s - t) / 2.0;
+
+        printf("( %lf , %lf+%lfi , %lf-%lfi )\n", real_root, repeated_real, imaginary, repeated_real, imaginary);
         return;
-    } 
+    }
+
+    if (discriminant == 0) {
+        double r13 = signed_cbrt(r);
+        double root1 = -term1 + 2.0 * r13;
+        double double_root = -(r13 + term1);
+        printf("( %lf , %lf , %lf )\n", root1, double_root, double_root);
+        return;
+    }
+
     q = -q;
-    dum1 = q*q*q;
-    dum1 = acos(r/sqrt(dum1));
-    r13 = 2.0*sqrt(q);
-    resultat.racine1 = -term1 + r13*cos(dum1/3.0);
-    resultat.racine2 = -term1 + r13*cos((dum1 + 2.0*Pi)/3.0);
-    resultat.racine3 = -term1 + r13*cos((dum1 + 4.0*Pi)/3.0);
-    printf("( %lf , %lf , %lf )\n",resultat.racine1,resultat.racine2,resultat.racine3);
-    return;
-
+    double angle = acos(r / sqrt(q * q * q));
+    double r13 = 2.0 * sqrt(q);
+    double root1 = -term1 + r13 * cos(angle / 3.0);
+    double root2 = -term1 + r13 * cos((angle + 2.0 * PI) / 3.0);
+    double root3 = -term1 + r13 * cos((angle + 4.0 * PI) / 3.0);
+    printf("( %lf , %lf , %lf )\n", root1, root2, root3);
 }
 
-void afficher2(){
-    solution resultat; 
-    printf("donne a : ");
-    scanf("%lf",&resultat.a);
-    printf("donne b : ");
-    scanf("%lf",&resultat.b);
-    printf("donne c : ");
-    scanf("%lf",&resultat.c);
-    printf("donne d : ");
-    scanf("%lf",&resultat.d);
-    approcher(resultat.a,resultat.b,resultat.c,resultat.d);
+void prompt_cubic(void) {
+    double a, b, c, d;
+    printf("a: ");
+    scanf("%lf", &a);
+    printf("b: ");
+    scanf("%lf", &b);
+    printf("c: ");
+    scanf("%lf", &c);
+    printf("d: ");
+    scanf("%lf", &d);
+    solve_cubic(a, b, c, d);
 }
 
-/*! \fn int main(int argc, char** argv)
-\param argc nombre d'arguments en entrée
-\param argv valeur des arguments en entrée
-\brief lance les calculs*/
-int main(int argc, char** argv){
-    printf("SECOND DEGREE \n");
-    afficher();
-    printf("TROISIEME DEGREE \n");
-    afficher2(1,0,0,1);  
+int main(void) {
+    printf("QUADRATIC\n");
+    prompt_quadratic();
+    printf("CUBIC\n");
+    prompt_cubic();
+    return 0;
 }

@@ -1,26 +1,22 @@
-#ifndef __TP8_H_
-#define __TP8_H_
+#ifndef TP8_H
+#define TP8_H
 
-#include <stdio.h> /*Autorise l'emploi de printf et de scanf.*/
-#include <time.h>
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
 #include <ctype.h>
-/*! void error()
-\brief envoi une erreur par raport à l'argument*/
-void error();
-/*! void error2()
-\brief envoi une erreur pas rapport au mot donné*/
-void error2();
-/*! void cesar()
-\brief execute le cryptage par la methode cesar*/
-void cesar();
-/*! void vigenere()
-\brief execute le cryptage par la methode vigenere*/
-void vigenere();
-/*! void scytale()
-\brief execute le cryptage par la methode scytale*/
-void scytale();
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/** Prints usage information listing the available ciphers. */
+void print_usage(void);
+
+/** Reads a word and a shift from stdin, then prints its Caesar cipher. */
+void caesar_cipher(void);
+
+/** Reads a word and a key from stdin, then prints its Vigenere cipher. */
+void vigenere_cipher(void);
+
+/** Reads a word from stdin, then prints it encoded with the scytale (columnar transposition) cipher. */
+void scytale_cipher(void);
 
 #endif

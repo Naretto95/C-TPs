@@ -1,429 +1,334 @@
+/**
+ * @file main.c
+ * @brief A command-line tool that converts plain PPM/PGM (netpbm) images to
+ *        grayscale (PGM) and/or black & white (PBM) via thresholding.
+ * @author Lilian Naretto
+ */
+
 #include "main.h"
-/*!\author Lilian Naretto <narettolil@eisti.eu>
-\date 21 decembre 2019
-\file main.c
-\brief main
-\version 0.1 premier jet*/
 
-
-float getNextFloatValue(FILE* File){
-  float res = 0;
-  float count = 0;
-  boolean boolhav = 0;
-  boolean boolnega = 0;
-  for(;!feof(File);){
-    char k = fgetc(File);
-    if(!boolhav && (k >= 48 && k <= 57)){
-      boolhav = 1;
-    }
-    if(k == 35){ 
-      char ignore[1024];
-      fgets(ignore, 1024, File);
-    } else {
-      if(k == 10 || k == 32 || k == 9){
-        if(boolhav){
-          return res*((boolnega)? -1 : 1)*((count != 0)? count : 1);
+/** Skips whitespace and '#' comments, positioning the stream at the next token. */
+static void skip_whitespace_and_comments(FILE *file) {
+    int c;
+    while ((c = fgetc(file)) != EOF) {
+        if (c == '#') {
+            while ((c = fgetc(file)) != EOF && c != '\n') {
+                /* discard the rest of the comment line */
+            }
+        } else if (!isspace(c)) {
+            ungetc(c, file);
+            return;
         }
-      } else if (k >= 48 && k <= 57){
-        res *= 10;
-        res += k-48;
-        count *= 0.1;
-      } else if(k == 45){
-        boolnega = 1;
-      } else if(k == 46){ 
-        count = 1;
-      }
     }
-  }
-  return res*((boolnega)? -1 : 1)*((count != 0)? count : 1);
 }
 
-int getNextValue(FILE* File){
-  int res = 0;
-  boolean boolhav = 0;
-  boolean boolnega = 0;
-  for(;!feof(File);){
-    char k = fgetc(File);
-    if(!boolhav && (k >= 48 && k <= 57)){
-      boolhav = 1;
+/** Reads the next whitespace/comment-delimited integer from a netpbm header. */
+static int read_int(FILE *file) {
+    skip_whitespace_and_comments(file);
+    int value = 0;
+    fscanf(file, "%d", &value);
+    return value;
+}
+
+/** Reads the 2-character netpbm magic number (e.g. "P3") from the file. */
+static void read_magic(FILE *file, char magic[3]) {
+    magic[0] = (char)fgetc(file);
+    magic[1] = (char)fgetc(file);
+    magic[2] = '\0';
+}
+
+PpmImage *load_ppm(const char *path) {
+    FILE *file = fopen(path, "r");
+    if (file == NULL) {
+        printf("Image not found\n");
+        return NULL;
     }
-    if(k == 35){ 
-      char ignore[1024];
-      fgets(ignore, 1024, File);
-    } else {
-      if(k == 10 || k == 32 || k == 9){
-        if(boolhav){
-          return res*((boolnega)? -1 : 1);
+
+    char magic[3];
+    read_magic(file, magic);
+    if (strcmp(magic, "P3") != 0) {
+        fclose(file);
+        printf("Invalid format\n");
+        return NULL;
+    }
+
+    PpmImage *image = malloc(sizeof(PpmImage));
+    image->width = read_int(file);
+    image->height = read_int(file);
+    image->range = read_int(file);
+    image->pixels = malloc((size_t)image->width * (size_t)image->height * sizeof(Pixel));
+
+    for (int i = 0; i < image->width * image->height; i++) {
+        for (int channel = 0; channel < 3; channel++) {
+            image->pixels[i].channels[channel] = read_int(file);
         }
-      } else if (k >= 48 && k <= 57){
-        res *= 10;
-        res += k-48;
-      } else if(k == 45){
-        boolnega = 1;
-      }
     }
-  }
-  return res*((boolnega)? -1 : 1);
+
+    fclose(file);
+    return image;
 }
 
-struct sImagePPM* loadImagePPM(char* data){
-  FILE* file = fopen(data, "r");
-  if(file != NULL){
-    char* motif = malloc(3*sizeof(char));
-    motif[0] = fgetc(file);
-    motif[1] = fgetc(file);
-    motif[2] = '\0';
-    if(strcmp(motif, "P3") == 0){ 
-      struct sImagePPM* sIPPM_image = malloc(1*sizeof(struct sImagePPM));
-      (*sIPPM_image).width = getNextValue(file);
-      (*sIPPM_image).height = getNextValue(file);
-      (*sIPPM_image).range = getNextValue(file);
-      (*sIPPM_image).pixels = malloc((*sIPPM_image).width*(*sIPPM_image).height*sizeof(struct sPixel));
-      for(int i = 0; i < (*sIPPM_image).width*(*sIPPM_image).height; i++){
-        for(int j = 0; j < 3; j++){
-          (*sIPPM_image).pixels[i].Color[j] = getNextValue(file);
+PgmImage *load_pgm(const char *path) {
+    FILE *file = fopen(path, "r");
+    if (file == NULL) {
+        printf("Image not found\n");
+        return NULL;
+    }
+
+    char magic[3];
+    read_magic(file, magic);
+    if (strcmp(magic, "P2") != 0) {
+        fclose(file);
+        printf("Invalid format\n");
+        return NULL;
+    }
+
+    PgmImage *image = malloc(sizeof(PgmImage));
+    image->width = read_int(file);
+    image->height = read_int(file);
+    image->range = read_int(file);
+    image->pixels = malloc((size_t)image->width * (size_t)image->height * sizeof(Pixel));
+
+    for (int i = 0; i < image->width * image->height; i++) {
+        image->pixels[i].channels[0] = read_int(file);
+    }
+
+    fclose(file);
+    return image;
+}
+
+void free_ppm(PpmImage *image) {
+    free(image->pixels);
+    free(image);
+}
+
+void free_pgm(PgmImage *image) {
+    free(image->pixels);
+    free(image);
+}
+
+void free_pbm(PbmImage *image) {
+    free(image->pixels);
+    free(image);
+}
+
+/** Number of decimal digits needed to print `value` (at least 1). */
+static int digit_count(int value) {
+    int count = 0;
+    do {
+        value /= 10;
+        count++;
+    } while (value != 0);
+    return count;
+}
+
+void save_ppm(const char *path, const PpmImage *image) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        printf("Cannot open file\n");
+        return;
+    }
+
+    fprintf(file, "P3\n%d %d\n%d\n", image->width, image->height, image->range);
+    int width = digit_count(image->range);
+
+    for (int i = 0; i < image->width * image->height; i++) {
+        for (int channel = 0; channel < 3; channel++) {
+            fprintf(file, "%*d ", width, image->pixels[i].channels[channel]);
         }
-      }
-      free(motif);
-      fclose(file);
-      return sIPPM_image;
-    } else { 
-      free(motif);
-      fclose(file);
-      printf("format incorrecte\n");
-      exit(-2);
-      return NULL;
+        fprintf(file, (i % image->width == image->width - 1) ? "\n" : "   ");
     }
-  }
-  printf("Image non trouvé\n");
-  return NULL;
-}
 
-struct sImagePGM* loadImagePGM(char* data){
-  FILE* file = fopen(data, "r");
-  if(file != NULL){
-    char* motif = malloc(3*sizeof(char));
-    motif[0] = fgetc(file);
-    motif[1] = fgetc(file);
-    motif[2] = '\0';
-    if(strcmp(motif, "P2") == 0){ 
-      struct sImagePGM* sIPGM_image = malloc(1*sizeof(struct sImagePGM));
-      (*sIPGM_image).width = getNextValue(file);
-      (*sIPGM_image).height = getNextValue(file);
-      (*sIPGM_image).range = getNextValue(file);
-      (*sIPGM_image).pixels = malloc((*sIPGM_image).width*(*sIPGM_image).height*sizeof(struct sPixel));
-      for(int i = 0; i < (*sIPGM_image).width*(*sIPGM_image).height; i++){
-        (*sIPGM_image).pixels[i].Color[0] = getNextValue(file);
-      }
-      free(motif);
-      fclose(file);
-      return sIPGM_image;
-    } else { 
-      free(motif);
-      fclose(file);
-      printf("format incorrecte\n");
-      exit(-2);
-      return NULL;
-    }
-  }
-  printf("Image non trouvé\n");
-  return NULL;
-}
-
-struct sImagePBM* loadImagePBM(char* data){
-  FILE* file = fopen(data, "r");
-  if(file != NULL){
-    char* motif = malloc(3*sizeof(char));
-    motif[0] = fgetc(file);
-    motif[1] = fgetc(file);
-    motif[2] = '\0';
-    if(strcmp(motif, "P1") == 0){ 
-      struct sImagePBM* sIPBM_image = malloc(1*sizeof(struct sImagePBM));
-      (*sIPBM_image).width = getNextValue(file);
-      (*sIPBM_image).height = getNextValue(file);
-      (*sIPBM_image).pixels = malloc((*sIPBM_image).width*(*sIPBM_image).height*sizeof(struct sPixel));
-      for(int i = 0; i < (*sIPBM_image).width*(*sIPBM_image).height; i++){
-        (*sIPBM_image).pixels[i].Color[0] = getNextValue(file);
-      }
-      free(motif);
-      fclose(file);
-      return sIPBM_image;
-    } else { 
-      free(motif);
-      fclose(file);
-      printf("format incorrecte\n");
-      exit(-2);
-      return NULL;
-    }
-  }
-  printf("Image non trouvé\n");
-  return NULL;
-}
-
-void PrintsPixel(struct sPixel sPixl_pixel, int int_range){
-  for(int i = 0 ; i < 3; i++){
-    printf("x%2x ", (int)round((sPixl_pixel.Color[i]/(float)int_range)*255));
-  }
-  printf("\n");
-}
-
-void PrintsImagePPM(struct sImagePPM* sIPPM_im){
-  printf("sImagePPM : \n");
-  printf("width : %d height : %d\n", (*sIPPM_im).width, (*sIPPM_im).height);
-  for(int i = 0; i < (*sIPPM_im).width*(*sIPPM_im).height; i++){
-    printf("%2d %2d : ", i%(*sIPPM_im).width, i/(*sIPPM_im).width);
-    PrintsPixel((*sIPPM_im).pixels[i], (*sIPPM_im).range);
-  }
-  printf("\n");
-}
-
-void PrintsImagePGM(struct sImagePGM* sIPGM_im){
-  printf("sImagePGM : \n");
-  printf("width : %d height : %d\n", (*sIPGM_im).width, (*sIPGM_im).height);
-  for(int i = 0; i < (*sIPGM_im).width*(*sIPGM_im).height; i++){
-    printf("%2d %2d : ", i%(*sIPGM_im).width, i/(*sIPGM_im).width);
-    printf("x%2x \n", (int)round(((*sIPGM_im).pixels[i].Color[0]/((float)(*sIPGM_im).range))*255));
-  }
-  printf("\n");
-}
-
-void PrintsImagePBM(struct sImagePBM* sIPBM_im){
-  printf("sImagePBM : \n");
-  printf("width : %d height : %d\n", (*sIPBM_im).width, (*sIPBM_im).height);
-  for(int i = 0; i < (*sIPBM_im).width*(*sIPBM_im).height; i++){
-    printf("%2d %2d : ", i%(*sIPBM_im).width, i/(*sIPBM_im).width);
-    printf("x%2x \n", abs((*sIPBM_im).pixels[i].Color[0]-1)*255);
-  }
-  printf("\n");
-}
-
-void freesImagePPM(struct sImagePPM* sIPPM_im){
-  free((*sIPPM_im).pixels);
-  free(sIPPM_im);
-}
-
-void freesImagePGM(struct sImagePGM* sIPGM_im){
-  free((*sIPGM_im).pixels);
-  free(sIPGM_im);
-}
-
-void freesImagePBM(struct sImagePBM* sIPBM_im){
-  free((*sIPBM_im).pixels);
-  free(sIPBM_im);
-}
-
-void saveImagePPM(char* str_name, struct sImagePPM* sIPPM_im){
-  FILE* file = fopen(str_name, "w");
-  if(file != NULL){
-    fprintf(file, "P3\n");
-    fprintf(file, "%d %d\n", (*sIPPM_im).width, (*sIPPM_im).height);
-    fprintf(file, "%d\n", (*sIPPM_im).range); 
-    int length;
-    int count = (*sIPPM_im).range;
-    for(length = 0; count != 0; length++){
-      count /= 10;
-    }
-    for(int i = 0; i < (*sIPPM_im).width*(*sIPPM_im).height; i++){
-      for(int j = 0; j < 3; j++){
-        fprintf(file, "%*d ", length, (*sIPPM_im).pixels[i].Color[j]);
-      }
-      if(i%(*sIPPM_im).width == (*sIPPM_im).width-1){
-        fprintf(file, "\n");
-      } else {
-        fprintf(file, "   ");
-      }
-    }
     fclose(file);
-    return;
-  }
-  printf("Cannot open File");
 }
 
-void saveImagePGM(char* str_name, struct sImagePGM* sIPGM_im){
-  FILE* file = fopen(str_name, "w");
-  if(file != NULL){
-    fprintf(file, "P2\n");
-    fprintf(file, "%d %d\n", (*sIPGM_im).width, (*sIPGM_im).height);
-    fprintf(file, "%d\n", (*sIPGM_im).range);
-    int length;
-    int count = (*sIPGM_im).range;
-    for(length = 0; count != 0; length++){
-      count /= 10;
+void save_pgm(const char *path, const PgmImage *image) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        printf("Cannot open file\n");
+        return;
     }
-    for(int i = 0; i < (*sIPGM_im).width*(*sIPGM_im).height; i++){
-      fprintf(file, "%*d ", length, (*sIPGM_im).pixels[i].Color[0]);
-      if(i%(*sIPGM_im).width == (*sIPGM_im).width-1){
-        fprintf(file, "\n");
-      }
+
+    fprintf(file, "P2\n%d %d\n%d\n", image->width, image->height, image->range);
+    int width = digit_count(image->range);
+
+    for (int i = 0; i < image->width * image->height; i++) {
+        fprintf(file, "%*d ", width, image->pixels[i].channels[0]);
+        if (i % image->width == image->width - 1) {
+            fprintf(file, "\n");
+        }
     }
+
     fclose(file);
-    return;
-  }
-  printf("Cannot open File");
 }
 
-void saveImagePBM(char* str_name, struct sImagePBM* sIPBM_im){
-  FILE* file = fopen(str_name, "w");
-  if(file != NULL){
-    fprintf(file, "P1\n");
-    fprintf(file, "%d %d\n", (*sIPBM_im).width, (*sIPBM_im).height);
-    for(int i = 0; i < (*sIPBM_im).width*(*sIPBM_im).height; i++){
-      fprintf(file, "%d ", (*sIPBM_im).pixels[i].Color[0]);
-      if(i%(*sIPBM_im).width == (*sIPBM_im).width-1){
-        fprintf(file, "\n");
-      }
+void save_pbm(const char *path, const PbmImage *image) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        printf("Cannot open file\n");
+        return;
     }
+
+    fprintf(file, "P1\n%d %d\n", image->width, image->height);
+
+    for (int i = 0; i < image->width * image->height; i++) {
+        fprintf(file, "%d ", image->pixels[i].channels[0]);
+        if (i % image->width == image->width - 1) {
+            fprintf(file, "\n");
+        }
+    }
+
     fclose(file);
-    return;
-  }
-  printf("Cannot open File");
 }
 
-int max(int int_a, int int_b){
-  return (int_a > int_b)? int_a : int_b;
-}
+PgmImage *to_grayscale(const PpmImage *image) {
+    PgmImage *result = malloc(sizeof(PgmImage));
+    result->width = image->width;
+    result->height = image->height;
+    result->range = image->range;
+    result->pixels = malloc((size_t)result->width * (size_t)result->height * sizeof(Pixel));
 
-int min(int int_a, int int_b){
-  return (int_a < int_b)? int_a : int_b;
-}
-
-struct sImagePGM* WhiteBlackFilter(struct sImagePPM* sIPPM_im){
-  struct sImagePGM* res = malloc(1*sizeof(struct sImagePGM));
-  (*res).width = (*sIPPM_im).width;
-  (*res).height = (*sIPPM_im).height;
-  (*res).range = (*sIPPM_im).range;
-  (*res).pixels = malloc((*res).width*(*res).height*sizeof(struct sPixel));
-  for(int i = 0; i < (*res).width*(*res).height; i++){
-    (*res).pixels[i].Color[0] = min((int)round((*sIPPM_im).pixels[i].Color[0]*0.299+(*sIPPM_im).pixels[i].Color[1]*0.587+(*sIPPM_im).pixels[i].Color[2]*0.144), (*res).range);
-  }
-  return res;
-}
-
-struct sImagePBM* Thresholding(struct sImagePGM* sIPGM_im, int int_value){
-  struct sImagePBM* res = malloc(1*sizeof(struct sImagePBM));
-  (*res).width = (*sIPGM_im).width;
-  (*res).height = (*sIPGM_im).height;
-  (*res).pixels = malloc((*res).width*(*res).height*sizeof(struct sPixel));
-  for(int i = 0; i < (*res).width*(*res).height; i++){
-    (*res).pixels[i].Color[0] = ((*sIPGM_im).pixels[i].Color[0] > int_value)? 0 : 1;
-  }
-  return res;
-}
-
-char* add(char* a, char* b){
-  char* res = malloc((strlen(a)+strlen(b)+1)*sizeof(char));
-  for(int i = 0; i < strlen(a); i++){
-    res[i] = a[i];
-  }
-  for(int i = 0; i < strlen(b); i++){
-    res[i+strlen(a)] = b[i];
-  }
-  res[strlen(a)+strlen(b)] = '\0';
-  return res;
-}
-
-void taskPPM(char* chr_in, char* chr_out, boolean bool_gris, int int_thres){
-  struct sImagePPM* sIPPM_image = loadImagePPM(chr_in);
-  if(sIPPM_image == NULL){
-    return;
-  }
-  if(bool_gris || int_thres != -1){
-    struct sImagePGM* sIPGM_imageGrey = WhiteBlackFilter(sIPPM_image);
-    char* chr_outPgm = add(chr_out, ".pgm");
-    saveImagePGM(chr_outPgm, sIPGM_imageGrey);
-    free(chr_outPgm);
-    if(int_thres >= 0){
-      struct sImagePBM* sIPBM_imageBlack = Thresholding(sIPGM_imageGrey, int_thres);
-      char* chr_outPbm = add(chr_out, ".pbm");
-      saveImagePBM(chr_outPbm, sIPBM_imageBlack);
-      free(chr_outPbm);
-      freesImagePBM(sIPBM_imageBlack);
+    for (int i = 0; i < result->width * result->height; i++) {
+        double luminosity = image->pixels[i].channels[0] * 0.299 +
+                             image->pixels[i].channels[1] * 0.587 +
+                             image->pixels[i].channels[2] * 0.144;
+        int value = (int)round(luminosity);
+        result->pixels[i].channels[0] = (value < result->range) ? value : result->range;
     }
-    freesImagePGM(sIPGM_imageGrey);
-  }
-  freesImagePPM(sIPPM_image);
+
+    return result;
 }
 
-void taskPGM(char* chr_in, char* chr_out, int int_thres){
-  struct sImagePGM* sIPGM_image = loadImagePGM(chr_in);
-  if(sIPGM_image == NULL){
-    return;
-  }
-  if(int_thres >= 0){
-    struct sImagePBM* sIPBM_imageBlack = Thresholding(sIPGM_image, int_thres);
-    char* chr_outPbm = add(chr_out, ".pbm");
-    saveImagePBM(chr_outPbm, sIPBM_imageBlack);
-    free(chr_outPbm);
-    freesImagePBM(sIPBM_imageBlack);
-  }
-  freesImagePGM(sIPGM_image);
-}
+PbmImage *threshold(const PgmImage *image, int value) {
+    PbmImage *result = malloc(sizeof(PbmImage));
+    result->width = image->width;
+    result->height = image->height;
+    result->pixels = malloc((size_t)result->width * (size_t)result->height * sizeof(Pixel));
 
-char* getExtension(char* fileName){
-  int length = strlen(fileName);
-  char* output;
-  for(int i = length-1; i >= 0; i--){
-    if(fileName[i] == 46){
-      output = malloc((length-i)*sizeof(char));
-      int j;
-      for(j = i+1; j < length; j++){
-        output[j-(i+1)] = fileName[j];
-      }
-      output[j-(i+1)] = '\0';
-      return output;
+    for (int i = 0; i < result->width * result->height; i++) {
+        result->pixels[i].channels[0] = (image->pixels[i].channels[0] > value) ? 0 : 1;
     }
-  }
-  return NULL;
+
+    return result;
 }
 
-/*! \fn int main(int argc, char** argv)
-\param argc nombre d'arguments en entrée
-\param argv valeur des arguments en entrée
-\brief lance les fonctions*/
-
-int main(int argc, char** argv){
-  boolean bool_gris = 0;
-  char* chr_in = NULL;
-  char* chr_out = NULL;
-  int int_thres = -1;
-  int int_listen = -1;
-  for(int i = 1; i < argc; i++){
-    if(int_listen != -1){
-      if(int_listen == 2){
-        int_thres = strtol(argv[i], NULL, 10);
-      } else if(int_listen == 1){
-        chr_out = argv[i];
-      } else if(int_listen == 0){
-        chr_in = argv[i];
-      }
-      int_listen = -1;
-    } else if(strcmp(argv[i], "-in") == 0){
-      int_listen = 0;
-    } else if(strcmp(argv[i], "-out") == 0){
-      int_listen = 1;
-    } else if(strcmp(argv[i], "-gris") == 0){
-      bool_gris = 1;
-    } else if(strcmp(argv[i], "-seuil") == 0){
-      int_listen = 2;
+char *get_extension(const char *file_name) {
+    const char *dot = strrchr(file_name, '.');
+    if (dot == NULL || dot == file_name) {
+        return NULL;
     }
-  }
-  if(chr_in != NULL && chr_out != NULL){
-    char* chr_extension = getExtension(chr_in);
-    if(strcmp(chr_extension, "ppm") == 0){
-      taskPPM(chr_in, chr_out, bool_gris, int_thres);
-    } else if(strcmp(chr_extension, "pgm") == 0){
-      taskPGM(chr_in, chr_out, int_thres);
+    size_t length = strlen(dot + 1);
+    char *extension = malloc(length + 1);
+    memcpy(extension, dot + 1, length + 1);
+    return extension;
+}
+
+static char *concat_strings(const char *a, const char *b) {
+    size_t len_a = strlen(a);
+    size_t len_b = strlen(b);
+    char *result = malloc(len_a + len_b + 1);
+    memcpy(result, a, len_a);
+    memcpy(result + len_a, b, len_b + 1);
+    return result;
+}
+
+/** Loads a PPM, optionally saving a grayscale (.pgm) and thresholded (.pbm) version. */
+static void process_ppm(const char *input, const char *output, boolean grayscale, int threshold_value) {
+    PpmImage *image = load_ppm(input);
+    if (image == NULL) {
+        return;
+    }
+
+    if (grayscale || threshold_value != -1) {
+        PgmImage *gray = to_grayscale(image);
+        char *gray_path = concat_strings(output, ".pgm");
+        save_pgm(gray_path, gray);
+        free(gray_path);
+
+        if (threshold_value >= 0) {
+            PbmImage *bw = threshold(gray, threshold_value);
+            char *bw_path = concat_strings(output, ".pbm");
+            save_pbm(bw_path, bw);
+            free(bw_path);
+            free_pbm(bw);
+        }
+
+        free_pgm(gray);
+    }
+
+    free_ppm(image);
+}
+
+/** Loads a PGM, optionally saving a thresholded (.pbm) version. */
+static void process_pgm(const char *input, const char *output, int threshold_value) {
+    PgmImage *image = load_pgm(input);
+    if (image == NULL) {
+        return;
+    }
+
+    if (threshold_value >= 0) {
+        PbmImage *bw = threshold(image, threshold_value);
+        char *bw_path = concat_strings(output, ".pbm");
+        save_pbm(bw_path, bw);
+        free(bw_path);
+        free_pbm(bw);
+    }
+
+    free_pgm(image);
+}
+
+int main(int argc, char **argv) {
+    boolean grayscale = 0;
+    char *input = NULL;
+    char *output = NULL;
+    int threshold_value = -1;
+    int expecting = -1; /* 0 = -in, 1 = -out, 2 = -threshold */
+
+    for (int i = 1; i < argc; i++) {
+        if (expecting != -1) {
+            if (expecting == 0) {
+                input = argv[i];
+            } else if (expecting == 1) {
+                output = argv[i];
+            } else if (expecting == 2) {
+                threshold_value = (int)strtol(argv[i], NULL, 10);
+            }
+            expecting = -1;
+        } else if (strcmp(argv[i], "-in") == 0) {
+            expecting = 0;
+        } else if (strcmp(argv[i], "-out") == 0) {
+            expecting = 1;
+        } else if (strcmp(argv[i], "-grayscale") == 0) {
+            grayscale = 1;
+        } else if (strcmp(argv[i], "-threshold") == 0) {
+            expecting = 2;
+        }
+    }
+
+    if (input == NULL || output == NULL) {
+        if (input == NULL) {
+            printf("missing -in <file>\n");
+        }
+        if (output == NULL) {
+            printf("missing -out <file>\n");
+        }
+        return 1;
+    }
+
+    char *extension = get_extension(input);
+    if (extension == NULL) {
+        printf("invalid -in file name\n");
+        return 1;
+    }
+
+    if (strcmp(extension, "ppm") == 0) {
+        process_ppm(input, output, grayscale, threshold_value);
+    } else if (strcmp(extension, "pgm") == 0) {
+        process_pgm(input, output, threshold_value);
     } else {
-      printf("nom de fichier -in incorrecte\n");
+        printf("unsupported input file extension: %s\n", extension);
     }
-    free(chr_extension);
-  } else {
-    if(chr_in == NULL){
-      printf("utilisé la commande -in\n");
-    }
-    if(chr_out == NULL){
-      printf("utilisé la commande -out\n");
-    }
-  }
-  return 0;
+
+    free(extension);
+    return 0;
 }

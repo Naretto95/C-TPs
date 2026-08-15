@@ -1,28 +1,22 @@
-CP = cp
-srcdir=./src/
-bindir=./bin/
-docdir=./doc/
-savedir=./save/
-CC= gcc -Wall -lm
-RM = rm -rf
-SRC=$(wildcard $(srcdir)*.c)
-HEAD=$(wildcard $(srcdir)*.h)
-OBJ=$(subst $(srcdir),$(bindir),$(SRC:.c=.o))
-PROG=tp11
+CC      = gcc
+CFLAGS  = -std=c11 -Wall -Wextra
+LDLIBS  = -lm
+srcdir  = src
+bindir  = bin
+PROG    = $(bindir)/tp11
 
-$(PROG) : $(OBJ)
-	$(CC) $^ -lm -o $@
+SRC     = $(wildcard $(srcdir)/*.c)
+OBJ     = $(patsubst $(srcdir)/%.c,$(bindir)/%.o,$(SRC))
 
-$(bindir)%.o: $(srcdir)%.c
-	$(CC) -c $^ -o $@
+$(PROG): $(OBJ)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
-.PHONY : clean save
+$(bindir)/%.o: $(srcdir)/%.c $(srcdir)/%.h | $(bindir)
+	$(CC) $(CFLAGS) -c $< -o $@
 
+$(bindir):
+	mkdir -p $(bindir)
+
+.PHONY: clean
 clean:
-	rm -f $(bindir)*.o core
-
-save : 
-	$(CP) $(srcdir)* $(savedir)
-
-restore :
-	$(CP) $(savedir)* $(srcdir)
+	rm -rf $(bindir)

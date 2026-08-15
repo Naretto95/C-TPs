@@ -1,83 +1,61 @@
-#ifndef __main_h_
-#define __main_h_
+#ifndef MAIN_H
+#define MAIN_H
 
+#include <ctype.h>
+#include <limits.h>
+#include <math.h>
 #include <stdio.h>
-#include <stdlib.h> 
-#include <math.h> 
-#include <string.h> 
-#include <ctype.h> 
-#include <limits.h> 
+#include <stdlib.h>
+#include <string.h>
 
 typedef int boolean;
 
-struct sPixel {
-  int Color[3]; 
-};
+/** A single pixel; PBM/PGM images only use channels[0]. */
+typedef struct {
+    int channels[3];
+} Pixel;
 
-struct sImagePPM {
-  struct sPixel* pixels;
-  int width; 
-  int height; 
-  int range; 
-};
+typedef struct {
+    Pixel *pixels;
+    int width;
+    int height;
+    int range;
+} PpmImage;
 
+typedef struct {
+    Pixel *pixels;
+    int width;
+    int height;
+    int range;
+} PgmImage;
 
-struct sImagePGM {
-  struct sPixel* pixels; 
-  int width; 
-  int height; 
-  int range; 
-};
+typedef struct {
+    Pixel *pixels;
+    int width;
+    int height;
+} PbmImage;
 
+/** Loads a plain PPM (P3) color image from `path`, or NULL on failure. */
+PpmImage *load_ppm(const char *path);
 
-struct sImagePBM {
-  struct sPixel* pixels; 
-  int width; 
-  int height; 
-};
+/** Loads a plain PGM (P2) grayscale image from `path`, or NULL on failure. */
+PgmImage *load_pgm(const char *path);
 
+void free_ppm(PpmImage *image);
+void free_pgm(PgmImage *image);
+void free_pbm(PbmImage *image);
 
-struct sImagePPM* loadImagePPM(char* data);
+void save_ppm(const char *path, const PpmImage *image);
+void save_pgm(const char *path, const PgmImage *image);
+void save_pbm(const char *path, const PbmImage *image);
 
+/** Converts a color image to grayscale using the luminosity weights. */
+PgmImage *to_grayscale(const PpmImage *image);
 
-struct sImagePGM* loadImagePGM(char* data);
+/** Converts a grayscale image to black & white using a threshold. */
+PbmImage *threshold(const PgmImage *image, int value);
 
-
-struct sImagePBM* loadImagePBM(char* data);
-
-
-void PrintsPixel(struct sPixel sPixl_pixel, int int_range);
-
-void PrintsImagePPM(struct sImagePPM* sIPPM_im);
-
-
-void PrintsImagePGM(struct sImagePGM* sIPGM_im);
-
-
-void PrintsImagePBM(struct sImagePBM* sIPBM_im);
-
-
-void freesImagePPM(struct sImagePPM* sIPPM_im);
-
-
-void freesImagePGM(struct sImagePGM* sIPGM_im);
-
-
-void freesImagePBM(struct sImagePBM* sIPBM_im);
-
-
-void saveImagePPM(char* str_name, struct sImagePPM* sIPPM_im);
-
-
-void saveImagePGM(char* str_name, struct sImagePGM* sIPGM_im);
-
-
-void saveImagePBM(char* str_name, struct sImagePBM* sIPBM_im);
-
-
-struct sImagePGM* WhiteBlackFilter(struct sImagePPM* sIPPM_im);
-
-
-struct sImagePBM* Thresholding(struct sImagePGM* sIPGM_im, int int_value);
+/** Returns a newly allocated copy of the filename's extension, or NULL. */
+char *get_extension(const char *file_name);
 
 #endif

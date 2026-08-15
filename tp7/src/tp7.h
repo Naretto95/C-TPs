@@ -1,57 +1,28 @@
-#ifndef __TP7_H_
-#define __TP7_H_
+#ifndef TP7_H
+#define TP7_H
 
-#define N 6
-/*! void tri_insertion(int tableau[N])
-\param int tableau[N]
-\brief tri de la maniere tri insertion*/
-void tri_insertion(int tableau[N]);
-/*! copiersoustableau(int* src, int debut, int fin)
-\param int* src
-\param int debut
-\param int fin
-\brief copie un tableau selon le debut et la fin*/
-int* copiersoustableau(int* src, int debut, int fin);
-/*! void fusion(int* tab1, int taille1, int* tab2,int taille2, int* tabRes)
-\param int* tab1
-\param int taille1
-\param int* tab2
-\param int taille2
-\param int* tabRes
-\brief fusionne deux tableaux*/
-void fusion(int* tab1, int taille1, int* tab2,int taille2, int* tabRes);
-/*! void triFusion(int* tab, int taille)
-\param int* tab
-\param int taille
-\brief tri un tableau de la maniere tri fusion*/
-void triFusion(int* tab, int taille);
-/*! void minMaxTableau(int* tab, int taille, int* min,int* max)
-\param int* tab
-\param int taille
-\param int* min
-\param int* max
-\brief donne la valeur max et min d'un tableau*/
-void minMaxTableau(int* tab, int taille, int* min,int* max);
-/*! void histogramme(int* tab, int taille, int* histo, int tailleH, int min)
-\param int* tab
-\param int taille
-\param int* histo
-\param int tailleH
-\param int min
-\brief donne la drequence d'apparitions des nombres d'un tableau*/
-void histogramme(int* tab, int taille, int* histo, int tailleH, int min);
-/*! void triDenombrement(int* tab, int taille)
-\param int* tab
-\param int taille
-\brief tri de la maniere tri par denombrement*/
-void triDenombrement(int* tab, int taille);
-
-
-
-#include <stdio.h> /*Autorise l'emploi de printf et de scanf.*/
-#include <time.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+#include <time.h>
 
+#define ARRAY_SIZE 6
+
+/** Sorts `array` in place using insertion sort. */
+void insertion_sort(int array[ARRAY_SIZE]);
+
+/** Allocates and returns a copy of src[start..end] (inclusive). */
+int *copy_subarray(const int *src, int start, int end);
+
+/** Merges two sorted arrays (a, b) into a single sorted array `result`. */
+void merge(const int *a, int size_a, const int *b, int size_b, int *result);
+
+/** Sorts `array` (of length `size`) in place using merge sort. */
+void merge_sort(int *array, int size);
+
+/** Finds the min and max values of `array` (of length `size`). */
+void find_min_max(const int *array, int size, int *min, int *max);
+
+/** Sorts `array` (of length `size`) in place using counting sort. */
+void counting_sort(int *array, int size);
 
 #endif

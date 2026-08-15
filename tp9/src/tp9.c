@@ -1,296 +1,100 @@
+/**
+ * @file tp9.c
+ * @brief Conway's Game of Life on a small, wrapping (toroidal) grid.
+ * @author Lilian Naretto
+ */
+
 #include "tp9.h"
-/*!\author Lilian Naretto <narettolil@eisti.eu>
-\date 19 novembre 2019
-\file tp9.c
-\brief tp9
-\version 0.1 premier jet*/
 
-void creergrille(int grille[hauteur][largeur]){
-    int x;
-    for (int i = 0; i < hauteur; i++)
-    {
-        for (int v = 0; v < largeur; v++)
-        {
-            printf("valeur case %d - %d : ",i,v);
-            scanf("%d",&x);
-            while (x!=0 && x!=1)
-            {
-                printf("mauvais numero, recommence (1 ou 0)\n");
-                printf("valeur case %d - %d : ",i,v);
-                scanf("%d",&x);
+void create_grid(int grid[GRID_HEIGHT][GRID_WIDTH]) {
+    for (int row = 0; row < GRID_HEIGHT; row++) {
+        for (int col = 0; col < GRID_WIDTH; col++) {
+            int value;
+            printf("value of cell %d - %d: ", row, col);
+            scanf("%d", &value);
+            while (value != DEAD && value != ALIVE) {
+                printf("Invalid value, try again (0 or 1)\n");
+                printf("value of cell %d - %d: ", row, col);
+                scanf("%d", &value);
             }
-            
-            grille[i][v]=x;
+            grid[row][col] = value;
         }
-        
     }
-    
 }
 
-void affichergrille(int grille[hauteur][largeur]){
-    for (int i = 0; i < hauteur; i++)
-    {
-        for (int v = 0; v < largeur; v++)
-        {
-            if (grille[i][v]==1)
-            {
-                printf("V ");
-            }
-            else
-            {
-                printf(". ");
-            }
-            
+void print_grid(int grid[GRID_HEIGHT][GRID_WIDTH]) {
+    for (int row = 0; row < GRID_HEIGHT; row++) {
+        for (int col = 0; col < GRID_WIDTH; col++) {
+            printf(grid[row][col] == ALIVE ? "V " : ". ");
         }
         printf("\n");
-        
     }
 }
 
-int voisinnord(int grille[hauteur][largeur],int x, int y){
-    if (x==0)
-    {
-        return grille[hauteur-1][y];
-    } else
-    {
-        return grille[x-1][y];
-    }
-    
+/** Wraps an index into the range [0, size), so the grid edges connect. */
+static int wrap(int index, int size) {
+    return (index + size) % size;
 }
 
-int voisinnordest(int grille[hauteur][largeur],int x, int y){
-    if (x==0)
-    {
-        if (y==largeur-1)
-        {
-            return grille[hauteur-1][0];
+int count_alive_neighbors(int grid[GRID_HEIGHT][GRID_WIDTH], int row, int col) {
+    int count = 0;
+    for (int dr = -1; dr <= 1; dr++) {
+        for (int dc = -1; dc <= 1; dc++) {
+            if (dr == 0 && dc == 0) {
+                continue;
+            }
+            int neighbor_row = wrap(row + dr, GRID_HEIGHT);
+            int neighbor_col = wrap(col + dc, GRID_WIDTH);
+            if (grid[neighbor_row][neighbor_col] == ALIVE) {
+                count++;
+            }
         }
-        else
-        {
-            return grille[hauteur-1][y+1];
-        }
-        
-    } else
-    {
-        if (y==largeur-1)
-        {
-            return grille[x-1][0];
-        }
-        
-        return grille[x-1][y+1];
     }
-    
+    return count;
 }
 
-int voisinest(int grille[hauteur][largeur],int x, int y){
-    if (y==largeur-1)
-    {
-        return grille[x][0];
-    } else
-    {
-        return grille[x][y+1];
+int next_cell_state(int grid[GRID_HEIGHT][GRID_WIDTH], int row, int col) {
+    int neighbors = count_alive_neighbors(grid, row, col);
+    if (grid[row][col] == ALIVE) {
+        return (neighbors == 2 || neighbors == 3) ? ALIVE : DEAD;
     }
-    
+    return (neighbors == 3) ? ALIVE : DEAD;
 }
 
-int voisinsudest(int grille[hauteur][largeur],int x, int y){
-    if (x==hauteur-1)
-    {
-        if (y==largeur-1)
-        {
-            return grille[0][0];
+void compute_next_generation(int grid[GRID_HEIGHT][GRID_WIDTH]) {
+    int next[GRID_HEIGHT][GRID_WIDTH];
+    for (int row = 0; row < GRID_HEIGHT; row++) {
+        for (int col = 0; col < GRID_WIDTH; col++) {
+            next[row][col] = next_cell_state(grid, row, col);
         }
-        else
-        {
-            return grille[0][y+1];
-        }
-        
-    } else
-    {
-        if (y==largeur-1)
-        {
-            return grille[x+1][0];
-        }
-        
-        return grille[x+1][y+1];
     }
-    
+    for (int row = 0; row < GRID_HEIGHT; row++) {
+        for (int col = 0; col < GRID_WIDTH; col++) {
+            grid[row][col] = next[row][col];
+        }
+    }
 }
 
-int voisinsud(int grille[hauteur][largeur],int x, int y){
-    if (x==hauteur-1)
-    {
-        return grille[0][y];
-    } else
-    {
-        return grille[x+1][y];
-    }
-    
-}
-
-int voisinsudouest(int grille[hauteur][largeur],int x, int y){
-    if (x==hauteur-1)
-    {
-        if (y==0)
-        {
-            return grille[0][largeur-1];
-        }
-        else
-        {
-            return grille[0][y-1];
-        }
-        
-    } else
-    {
-        if (y==0)
-        {
-            return grille[x+1][largeur-1];
-        }
-        
-        return grille[x+1][y-1];
-    }
-    
-}
-
-int voisinouest(int grille[hauteur][largeur],int x, int y){
-    if (y==0)
-    {
-        return grille[x][largeur-1];
-    } else
-    {
-        return grille[x][y-1];
-    }
-    
-}
-
-int voisinnordouest(int grille[hauteur][largeur],int x, int y){
-    if (x==0)
-    {
-        if (y==0)
-        {
-            return grille[hauteur-1][largeur-1];
-        }
-        else
-        {
-            return grille[hauteur-1][y-1];
-        }
-        
-    } else
-    {
-        if (y==0)
-        {
-            return grille[x-1][largeur-1];
-        }
-        
-        return grille[x-1][y-1];
-    }
-    
-}
-
-int comptecellulevoisinage(int grille[hauteur][largeur],int x, int y){
-    int k=0;
-    if (voisinnord(grille,x,y)==1)
-    {
-        k++;
-    }
-    if (voisinnordest(grille,x,y)==1)
-    {
-        k++;
-    }
-    if (voisinnordouest(grille,x,y)==1)
-    {
-        k++;
-    }
-    if (voisinsud(grille,x,y)==1)
-    {
-        k++;
-    }
-    if (voisinsudest(grille,x,y)==1)
-    {
-        k++;
-    }
-    if (voisinsudouest(grille,x,y)==1)
-    {
-        k++;
-    }
-    if (voisinest(grille,x,y)==1)
-    {
-        k++;
-    }
-    if (voisinouest(grille,x,y)==1)
-    {
-        k++;
-    
-    }
-    return k;
-    
-}
-
-int calculernouvellevaleur(int grille[hauteur][largeur],int x, int y){
-    if (grille[x][y]==1 && (comptecellulevoisinage(grille,x,y)==2 ||comptecellulevoisinage(grille,x,y)==3))
-    {
-        return 1;
-    }
-    else
-    {
-        if (comptecellulevoisinage(grille,x,y)==3)
-        {
-            return 1;
-        }
-        else
-        {
-            return 0;
-        }
-        
-        
-    }
-    
-}
-
-void calculernouvellegrille(int grille[hauteur][largeur]){
-    int grille2[hauteur][largeur];
-    for (int i = 0; i < hauteur; i++)
-    {
-        for (int v = 0; v < largeur; v++)
-        {
-            grille2[i][v]=calculernouvellevaleur(grille,i,v);
-        }
-        
-    }
-    for (int i = 0; i < hauteur; i++)
-    {
-        for (int v = 0; v < largeur; v++)
-        {
-            grille[i][v]=grille2[i][v];
-        }
-        
-    }
-    
-}
-
-void jeudelavie(int grille[hauteur][largeur],int n){
-    for (int i = 0; i < n; i++)
-    {
-        calculernouvellegrille(grille);
-        affichergrille(grille);
+void run_game_of_life(int grid[GRID_HEIGHT][GRID_WIDTH], int generations) {
+    for (int step = 0; step < generations; step++) {
+        compute_next_generation(grid);
+        print_grid(grid);
         printf("\n");
     }
-    
 }
 
+int main(void) {
+    int grid[GRID_HEIGHT][GRID_WIDTH];
+    int generations;
 
-/*! \fn int main(int argc, char** argv)
-\param argc nombre d'arguments en entrée
-\param argv valeur des arguments en entrée
-\brief lance le jeu*/
-int main(int argc, char** argv){
-    int l;
-    int grille[hauteur][largeur];
-    creergrille(grille);
+    create_grid(grid);
     printf("\n");
-    affichergrille(grille);
-    printf("nombre d'étapes du jeu de la vie : ");
-    scanf("%d",&l);
+    print_grid(grid);
+
+    printf("Number of generations to simulate: ");
+    scanf("%d", &generations);
     printf("\n");
-    jeudelavie(grille,l);
+
+    run_game_of_life(grid, generations);
+    return 0;
 }
